@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 require 'firebase-ruby/trollop'
 require 'firebase-ruby'
+require 'json'
 
 
 opts = Trollop::options do
@@ -11,6 +12,7 @@ opts = Trollop::options do
   opt :log, 'Log file', type: :string
   opt :path, 'Path', type: :string
   opt :request, 'Specify request command to use', type: :string, short: 'X', default: 'get'
+  opt :ruby, 'Output Ruby format'
   opt :verbose, 'Verbose mode'
 end
 
@@ -48,4 +50,11 @@ when :put, :patch, :post
   end
 end
 
-puts data if data
+if data
+  if opts[:ruby]
+    puts data
+  else
+    json_opts = {indent: '  ', space: ' ', object_nl: "\n", array_nl: "\n"}
+    puts JSON.fast_generate(data, json_opts)
+  end
+end
