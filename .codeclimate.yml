@@ -1,2 +1,16 @@
+---
+engines:
+  brakeman:
+    enabled: true
+  duplication:
+    enabled: true
+    config:
+      languages:
+      - ruby:
+  fixme:
+    enabled: true
+  rubocop:
+    enabled: true
+
 exclude_paths:
   - lib/firebase-ruby/trollop.rb
