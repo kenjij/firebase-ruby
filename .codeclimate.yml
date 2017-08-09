@@ -10,5 +10,9 @@ engines:
   rubocop:
     enabled: true
 
+ratings:
+   paths:
+     - "**"
+
 exclude_paths:
   - lib/firebase-ruby/trollop.rb
