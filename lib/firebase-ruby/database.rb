@@ -59,12 +59,9 @@ module Firebase
     def http
       unless @http
         url = FIREBASE_URL_TEMPLATE % project_id
-        headers = {
-          'Authorization' => "Bearer #{auth.valid_token}",
-          'Content-Type' => 'application/json'
-        }
-        @http = HTTP.new(url, headers)
+        @http = HTTP.new(url, {'Content-Type' => 'application/json'})
       end
+      @http.headers['Authorization'] = "Bearer #{auth.valid_token}"
       return @http
     end
 
