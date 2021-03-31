@@ -1,17 +1,17 @@
-# lib/trollop.rb -- trollop command-line processing library
+# lib/optimist.rb -- optimist command-line processing library
 # Copyright (c) 2008-2014 William Morgan.
 # Copyright (c) 2014 Red Hat, Inc.
-# trollop is licensed under the MIT license.
+# optimist is licensed under the MIT license.
 
 require 'date'
 
-module Trollop
+module Optimist
   # note: this is duplicated in gemspec
   # please change over there too
-VERSION = "2.1.2"
+VERSION = "3.0.1"
 
 ## Thrown by Parser in the event of a commandline error. Not needed if
-## you're using the Trollop::options entry.
+## you're using the Optimist::options entry.
 class CommandlineError < StandardError
   attr_reader :error_code
 
@@ -22,12 +22,12 @@ class CommandlineError < StandardError
 end
 
 ## Thrown by Parser if the user passes in '-h' or '--help'. Handled
-## automatically by Trollop#options.
+## automatically by Optimist#options.
 class HelpNeeded < StandardError
 end
 
 ## Thrown by Parser if the user passes in '-v' or '--version'. Handled
-## automatically by Trollop#options.
+## automatically by Optimist#options.
 class VersionNeeded < StandardError
 end
 
@@ -38,15 +38,38 @@ FLOAT_RE = /^-?((\d+(\.\d+)?)|(\.\d+))([eE][-+]?[\d]+)?$/
 PARAM_RE = /^-(-|\.$|[^\d\.])/
 
 ## The commandline parser. In typical usage, the methods in this class
-## will be handled internally by Trollop::options. In this case, only the
+## will be handled internally by Optimist::options. In this case, only the
 ## #opt, #banner and #version, #depends, and #conflicts methods will
 ## typically be called.
 ##
 ## If you want to instantiate this class yourself (for more complicated
 ## argument-parsing logic), call #parse to actually produce the output hash,
 ## and consider calling it from within
-## Trollop::with_standard_exception_handling.
+## Optimist::with_standard_exception_handling.
 class Parser
+
+  ## The registry is a class-instance-variable map of option aliases to their subclassed Option class.
+  @registry = {}
+
+  ## The Option subclasses are responsible for registering themselves using this function.
+  def self.register(lookup, klass)
+    @registry[lookup.to_sym] = klass
+  end
+
+  ## Gets the class from the registry.
+  ## Can be given either a class-name, e.g. Integer, a string, e.g "integer", or a symbol, e.g :integer
+  def self.registry_getopttype(type)
+    return nil unless type
+    if type.respond_to?(:name)
+      type = type.name
+      lookup = type.downcase.to_sym
+    else
+      lookup = type.to_sym
+    end
+    raise ArgumentError, "Unsupported argument type '#{type}', registry lookup '#{lookup}'" unless @registry.has_key?(lookup)
+    return @registry[lookup].new
+  end
+
   INVALID_SHORT_ARG_REGEX = /[\d-]/ #:nodoc:
 
   ## The values from the commandline that were not interpreted by #parse.
@@ -75,7 +98,7 @@ class Parser
     @educate_on_error = false
     @synopsis = nil
     @usage = nil
-    
+
     # instance_eval(&b) if b # can't take arguments
     cloaker(&b).bind(self).call(*a) if b
   end
@@ -90,7 +113,7 @@ class Parser
   ## [+:long+] Specify the long form of the argument, i.e. the form with two dashes. If unspecified, will be automatically derived based on the argument name by turning the +name+ option into a string, and replacing any _'s by -'s.
   ## [+:short+] Specify the short form of the argument, i.e. the form with one dash. If unspecified, will be automatically derived from +name+. Use :none: to not have a short value.
   ## [+:type+] Require that the argument take a parameter or parameters of type +type+. For a single parameter, the value can be a member of +SINGLE_ARG_TYPES+, or a corresponding Ruby class (e.g. +Integer+ for +:int+). For multiple-argument parameters, the value can be any member of +MULTI_ARG_TYPES+ constant. If unset, the default argument type is +:flag+, meaning that the argument does not take a parameter. The specification of +:type+ is not necessary if a +:default+ is given.
-  ## [+:default+] Set the default value for an argument. Without a default value, the hash returned by #parse (and thus Trollop::options) will have a +nil+ value for this key unless the argument is given on the commandline. The argument type is derived automatically from the class of the default value given, so specifying a +:type+ is not necessary if a +:default+ is given. (But see below for an important caveat when +:multi+: is specified too.) If the argument is a flag, and the default is set to +true+, then if it is specified on the the commandline the value will be +false+.
+  ## [+:default+] Set the default value for an argument. Without a default value, the hash returned by #parse (and thus Optimist::options) will have a +nil+ value for this key unless the argument is given on the commandline. The argument type is derived automatically from the class of the default value given, so specifying a +:type+ is not necessary if a +:default+ is given. (But see below for an important caveat when +:multi+: is specified too.) If the argument is a flag, and the default is set to +true+, then if it is specified on the the commandline the value will be +false+.
   ## [+:required+] If set to +true+, the argument must be provided on the commandline.
   ## [+:multi+] If set to +true+, allows multiple occurrences of the option on the commandline. Otherwise, only a single instance of the option is allowed. (Note that this is different from taking multiple parameters. See below.)
   ##
@@ -116,7 +139,7 @@ class Parser
   ## There's one ambiguous case to be aware of: when +:multi+: is true and a
   ## +:default+ is set to an array (of something), it's ambiguous whether this
   ## is a multi-value argument as well as a multi-occurrence argument.
-  ## In thise case, Trollop assumes that it's not a multi-value argument.
+  ## In thise case, Optimist assumes that it's not a multi-value argument.
   ## If you want a multi-value, multi-occurrence argument with a default
   ## value, you must specify +:type+ as well.
 
@@ -164,7 +187,7 @@ class Parser
 
   ## Marks two (or more!) options as requiring each other. Only handles
   ## undirected (i.e., mutual) dependencies. Directed dependencies are
-  ## better modeled with Trollop::die.
+  ## better modeled with Optimist::die.
   def depends(*syms)
     syms.each { |sym| raise ArgumentError, "unknown option '#{sym}'" unless @specs[sym] }
     @constraints << [:depends, syms]
@@ -182,7 +205,7 @@ class Parser
   ## intact.
   ##
   ## A typical use case would be for subcommand support, where these
-  ## would be set to the list of subcommands. A subsequent Trollop
+  ## would be set to the list of subcommands. A subsequent Optimist
   ## invocation would then be used to parse subcommand options, after
   ## shifting the subcommand off of ARGV.
   def stop_on(*words)
@@ -203,7 +226,7 @@ class Parser
     @educate_on_error = true
   end
 
-  ## Parses the commandline. Typically called by Trollop::options,
+  ## Parses the commandline. Typically called by Optimist::options,
   ## but you can call it directly if you need more control.
   ##
   ## throws CommandlineError, HelpNeeded, and VersionNeeded exceptions.
@@ -240,7 +263,7 @@ class Parser
 
       sym = nil if arg =~ /--no-/ # explicitly invalidate --no-no- arguments
 
-      next 0 if ignore_invalid_options && !sym
+      next nil if ignore_invalid_options && !sym
       raise CommandlineError, "unknown argument '#{arg}'" unless sym
 
       if given_args.include?(sym) && !@specs[sym].multi?
@@ -255,7 +278,7 @@ class Parser
       # The block returns the number of parameters taken.
       num_params_taken = 0
 
-      unless params.nil?
+      unless params.empty?
         if @specs[sym].single_arg?
           given_args[sym][:params] << params[0, 1]  # take the first parameter
           num_params_taken = 1
@@ -301,20 +324,7 @@ class Parser
 
       vals["#{sym}_given".intern] = true # mark argument as specified on the commandline
 
-      case opts.type
-      when :flag
-        vals[sym] = (sym.to_s =~ /^no_/ ? negative_given : !negative_given)
-      when :int, :ints
-        vals[sym] = params.map { |pg| pg.map { |p| parse_integer_parameter p, arg } }
-      when :float, :floats
-        vals[sym] = params.map { |pg| pg.map { |p| parse_float_parameter p, arg } }
-      when :string, :strings
-        vals[sym] = params.map { |pg| pg.map(&:to_s) }
-      when :io, :ios
-        vals[sym] = params.map { |pg| pg.map { |p| parse_io_parameter p, arg } }
-      when :date, :dates
-        vals[sym] = params.map { |pg| pg.map { |p| parse_date_parameter p, arg } }
-      end
+      vals[sym] = opts.parse(params, negative_given)
 
       if opts.single_arg?
         if opts.multi?        # multiple options, each with a single parameter
@@ -344,41 +354,13 @@ class Parser
     vals
   end
 
-  def parse_date_parameter(param, arg) #:nodoc:
-    begin
-      require 'chronic'
-      time = Chronic.parse(param)
-    rescue LoadError
-      # chronic is not available
-    end
-    time ? Date.new(time.year, time.month, time.day) : Date.parse(param)
-  rescue ArgumentError
-    raise CommandlineError, "option '#{arg}' needs a date"
-  end
-
   ## Print the help message to +stream+.
   def educate(stream = $stdout)
     width # hack: calculate it now; otherwise we have to be careful not to
           # call this unless the cursor's at the beginning of a line.
+
     left = {}
-    @specs.each do |name, spec|
-      left[name] =
-        (spec.short? ? "-#{spec.short}, " : "") + "--#{spec.long}" +
-        case spec.type
-        when :flag    then ""
-        when :int     then "=<i>"
-        when :ints    then "=<i+>"
-        when :string  then "=<s>"
-        when :strings then "=<s+>"
-        when :float   then "=<f>"
-        when :floats  then "=<f+>"
-        when :io      then "=<filename/uri>"
-        when :ios     then "=<filename/uri+>"
-        when :date    then "=<date>"
-        when :dates   then "=<date+>"
-        end +
-        (spec.flag? && spec.default ? ", --no-#{spec.long}" : "")
-    end
+    @specs.each { |name, spec| left[name] = spec.educate }
 
     leftcol_width = left.values.map(&:length).max || 0
     rightcol_start = leftcol_width + 6 # spaces
@@ -400,27 +382,8 @@ class Parser
 
       spec = @specs[opt]
       stream.printf "  %-#{leftcol_width}s    ", left[opt]
-      desc = spec.desc + begin
-        default_s = case spec.default
-        when $stdout   then "<stdout>"
-        when $stdin    then "<stdin>"
-        when $stderr   then "<stderr>"
-        when Array
-          spec.default.join(", ")
-        else
-          spec.default.to_s
-        end
+      desc = spec.description_with_default
 
-        if spec.default
-          if spec.desc =~ /\.$/
-            " (Default: #{default_s})"
-          else
-            " (default: #{default_s})"
-          end
-        else
-          ""
-        end
-      end
       stream.puts wrap(desc, :width => width - rightcol_start - 1, :prefix => rightcol_start)
     end
   end
@@ -460,8 +423,9 @@ class Parser
     end
   end
 
-  ## The per-parser version of Trollop::die (see that for documentation).
+  ## The per-parser version of Optimist::die (see that for documentation).
   def die(arg, msg = nil, error_code = nil)
+    msg, error_code = nil, msg if msg.kind_of?(Integer)
     if msg
       $stderr.puts "Error: argument --#{@specs[arg].long} #{msg}."
     else
@@ -489,47 +453,60 @@ private
       when /^--$/ # arg terminator
         return remains += args[(i + 1)..-1]
       when /^--(\S+?)=(.*)$/ # long argument with equals
-        yield "--#{$1}", [$2]
+        num_params_taken = yield "--#{$1}", [$2]
+        if num_params_taken.nil?
+          remains << args[i]
+          if @stop_on_unknown
+            return remains += args[i + 1..-1]
+          end
+        end
         i += 1
       when /^--(\S+)$/ # long argument
         params = collect_argument_parameters(args, i + 1)
-        if params.empty?
-          yield args[i], nil
-          i += 1
-        else
-          num_params_taken = yield args[i], params
-          unless num_params_taken
-            if @stop_on_unknown
-              return remains += args[i + 1..-1]
-            else
-              remains += params
-            end
+        num_params_taken = yield args[i], params
+
+        if num_params_taken.nil?
+          remains << args[i]
+          if @stop_on_unknown
+            return remains += args[i + 1..-1]
           end
-          i += 1 + num_params_taken
+        else
+          i += num_params_taken
         end
+        i += 1
       when /^-(\S+)$/ # one or more short arguments
+        short_remaining = ""
         shortargs = $1.split(//)
         shortargs.each_with_index do |a, j|
           if j == (shortargs.length - 1)
             params = collect_argument_parameters(args, i + 1)
-            if params.empty?
-              yield "-#{a}", nil
-              i += 1
-            else
-              num_params_taken = yield "-#{a}", params
-              unless num_params_taken
-                if @stop_on_unknown
-                  return remains += args[i + 1..-1]
-                else
-                  remains += params
-                end
+
+            num_params_taken = yield "-#{a}", params
+            unless num_params_taken
+              short_remaining << a
+              if @stop_on_unknown
+                remains << "-#{short_remaining}"
+                return remains += args[i + 1..-1]
               end
-              i += 1 + num_params_taken
+            else
+              i += num_params_taken
             end
           else
-            yield "-#{a}", nil
+            unless yield "-#{a}", []
+              short_remaining << a
+              if @stop_on_unknown
+                short_remaining += shortargs[j + 1..-1].join
+                remains << "-#{short_remaining}"
+                return remains += args[i + 1..-1]
+              end
+            end
           end
         end
+
+        unless short_remaining.empty?
+          remains << "-#{short_remaining}"
+        end
+        i += 1
       else
         if @stop_on_unknown
           return remains += args[i..-1]
@@ -541,29 +518,6 @@ private
     end
 
     remains
-  end
-
-  def parse_integer_parameter(param, arg)
-    raise CommandlineError, "option '#{arg}' needs an integer" unless param =~ /^-?[\d_]+$/
-    param.to_i
-  end
-
-  def parse_float_parameter(param, arg)
-    raise CommandlineError, "option '#{arg}' needs a floating-point number" unless param =~ FLOAT_RE
-    param.to_f
-  end
-
-  def parse_io_parameter(param, arg)
-    if param =~ /^(stdin|-)$/i
-      $stdin
-    else
-      require 'open-uri'
-      begin
-        open param
-      rescue SystemCallError => e
-        raise CommandlineError, "file or url for option '#{arg}' cannot be opened: #{e.message}"
-      end
-    end
   end
 
   def collect_argument_parameters(args, start_at)
@@ -621,173 +575,318 @@ private
   end
 end
 
-## The option for each flag
 class Option
-  ## The set of values that indicate a flag option when passed as the
-  ## +:type+ parameter of #opt.
-  FLAG_TYPES = [:flag, :bool, :boolean]
 
-  ## The set of values that indicate a single-parameter (normal) option when
-  ## passed as the +:type+ parameter of #opt.
-  ##
-  ## A value of +io+ corresponds to a readable IO resource, including
-  ## a filename, URI, or the strings 'stdin' or '-'.
-  SINGLE_ARG_TYPES = [:int, :integer, :string, :double, :float, :io, :date]
+  attr_accessor :name, :short, :long, :default
+  attr_writer :multi_given
 
-  ## The set of values that indicate a multiple-parameter option (i.e., that
-  ## takes multiple space-separated values on the commandline) when passed as
-  ## the +:type+ parameter of #opt.
-  MULTI_ARG_TYPES = [:ints, :integers, :strings, :doubles, :floats, :ios, :dates]
+  def initialize
+    @long = nil
+    @short = nil
+    @name = nil
+    @multi_given = false
+    @hidden = false
+    @default = nil
+    @optshash = Hash.new()
+  end
 
-  ## The complete set of legal values for the +:type+ parameter of #opt.
-  TYPES = FLAG_TYPES + SINGLE_ARG_TYPES + MULTI_ARG_TYPES
+  def opts(key)
+    @optshash[key]
+  end
 
-  attr_accessor :name, :opts
+  def opts=(o)
+    @optshash = o
+  end
 
-  def initialize(name, desc="", opts={}, &b)
-    ## fill in :type
-    opts[:type] = # normalize
-      case opts[:type]
-      when :boolean, :bool then :flag
-      when :integer        then :int
-      when :integers       then :ints
-      when :double         then :float
-      when :doubles        then :floats
-      when Class
-        case opts[:type].name
-        when 'TrueClass',
-             'FalseClass'  then :flag
-        when 'String'      then :string
-        when 'Integer'     then :int
-        when 'Float'       then :float
-        when 'IO'          then :io
-        when 'Date'        then :date
-        else
-          raise ArgumentError, "unsupported argument type '#{opts[:type].class.name}'"
-        end
-      when nil             then nil
+  ## Indicates a flag option, which is an option without an argument
+  def flag? ; false ; end
+  def single_arg?
+    !self.multi_arg? && !self.flag?
+  end
+
+  def multi ; @multi_given ; end
+  alias multi? multi
+
+  ## Indicates that this is a multivalued (Array type) argument
+  def multi_arg? ; false ; end
+  ## note: Option-Types with both multi_arg? and flag? false are single-parameter (normal) options.
+
+  def array_default? ; self.default.kind_of?(Array) ; end
+
+  def short? ; short && short != :none ; end
+
+  def callback ; opts(:callback) ; end
+  def desc ; opts(:desc) ; end
+
+  def required? ; opts(:required) ; end
+
+  def parse(_paramlist, _neg_given)
+    raise NotImplementedError, "parse must be overridden for newly registered type"
+  end
+
+  # provide type-format string.  default to empty, but user should probably override it
+  def type_format ; "" ; end
+
+  def educate
+    (short? ? "-#{short}, " : "") + "--#{long}" + type_format + (flag? && default ? ", --no-#{long}" : "")
+  end
+
+  ## Format the educate-line description including the default-value(s)
+  def description_with_default
+    return desc unless default
+    default_s = case default
+                when $stdout   then '<stdout>'
+                when $stdin    then '<stdin>'
+                when $stderr   then '<stderr>'
+                when Array
+                  default.join(', ')
+                else
+                  default.to_s
+                end
+    defword = desc.end_with?('.') ? 'Default' : 'default'
+    return "#{desc} (#{defword}: #{default_s})"
+  end
+
+  ## Provide a way to register symbol aliases to the Parser
+  def self.register_alias(*alias_keys)
+    alias_keys.each do |alias_key|
+      # pass in the alias-key and the class
+      Parser.register(alias_key, self)
+    end
+  end
+
+  ## Factory class methods ...
+
+  # Determines which type of object to create based on arguments passed
+  # to +Optimist::opt+.  This is trickier in Optimist, than other cmdline
+  # parsers (e.g. Slop) because we allow the +default:+ to be able to
+  # set the option's type.
+  def self.create(name, desc="", opts={}, settings={})
+
+    opttype = Optimist::Parser.registry_getopttype(opts[:type])
+    opttype_from_default = get_klass_from_default(opts, opttype)
+
+    raise ArgumentError, ":type specification and default type don't match (default type is #{opttype_from_default.class})" if opttype && opttype_from_default && (opttype.class != opttype_from_default.class)
+
+    opt_inst = (opttype || opttype_from_default || Optimist::BooleanOption.new)
+
+    ## fill in :long
+    opt_inst.long = handle_long_opt(opts[:long], name)
+
+    ## fill in :short
+    opt_inst.short = handle_short_opt(opts[:short])
+
+    ## fill in :multi
+    multi_given = opts[:multi] || false
+    opt_inst.multi_given = multi_given
+
+    ## fill in :default for flags
+    defvalue = opts[:default] || opt_inst.default
+
+    ## autobox :default for :multi (multi-occurrence) arguments
+    defvalue = [defvalue] if defvalue && multi_given && !defvalue.kind_of?(Array)
+    opt_inst.default = defvalue
+    opt_inst.name = name
+    opt_inst.opts = opts
+    opt_inst
+  end
+
+  private
+
+  def self.get_type_from_disdef(optdef, opttype, disambiguated_default)
+    if disambiguated_default.is_a? Array
+      return(optdef.first.class.name.downcase + "s") if !optdef.empty?
+      if opttype
+        raise ArgumentError, "multiple argument type must be plural" unless opttype.multi_arg?
+        return nil
       else
-        raise ArgumentError, "unsupported argument type '#{opts[:type]}'" unless TYPES.include?(opts[:type])
-        opts[:type]
+        raise ArgumentError, "multiple argument type cannot be deduced from an empty array"
       end
+    end
+    return disambiguated_default.class.name.downcase
+  end
 
+  def self.get_klass_from_default(opts, opttype)
     ## for options with :multi => true, an array default doesn't imply
     ## a multi-valued argument. for that you have to specify a :type
     ## as well. (this is how we disambiguate an ambiguous situation;
     ## see the docs for Parser#opt for details.)
-    disambiguated_default = if opts[:multi] && opts[:default].kind_of?(Array) && !opts[:type]
-      opts[:default].first
-    else
-      opts[:default]
-    end
 
-    type_from_default =
-      case disambiguated_default
-      when Integer     then :int
-      when Numeric     then :float
-      when TrueClass,
-           FalseClass  then :flag
-      when String      then :string
-      when IO          then :io
-      when Date        then :date
-      when Array
-        if opts[:default].empty?
-          if opts[:type]
-            raise ArgumentError, "multiple argument type must be plural" unless MULTI_ARG_TYPES.include?(opts[:type])
-            nil
-          else
-            raise ArgumentError, "multiple argument type cannot be deduced from an empty array for '#{opts[:default][0].class.name}'"
-          end
-        else
-          case opts[:default][0]    # the first element determines the types
-          when Integer then :ints
-          when Numeric then :floats
-          when String  then :strings
-          when IO      then :ios
-          when Date    then :dates
-          else
-            raise ArgumentError, "unsupported multiple argument type '#{opts[:default][0].class.name}'"
-          end
-        end
-      when nil         then nil
-      else
-        raise ArgumentError, "unsupported argument type '#{opts[:default].class.name}'"
-      end
+    disambiguated_default = if opts[:multi] && opts[:default].is_a?(Array) && opttype.nil?
+                              opts[:default].first
+                            else
+                              opts[:default]
+                            end
 
-    raise ArgumentError, ":type specification and default type don't match (default type is #{type_from_default})" if opts[:type] && type_from_default && opts[:type] != type_from_default
-
-    opts[:type] = opts[:type] || type_from_default || :flag
-
-    ## fill in :long
-    opts[:long] = opts[:long] ? opts[:long].to_s : name.to_s.gsub("_", "-")
-    opts[:long] = case opts[:long]
-      when /^--([^-].*)$/ then $1
-      when /^[^-]/        then opts[:long]
-      else                     raise ArgumentError, "invalid long option name #{opts[:long].inspect}"
-    end
-
-    ## fill in :short
-    opts[:short] = opts[:short].to_s if opts[:short] && opts[:short] != :none
-    opts[:short] = case opts[:short]
-      when /^-(.)$/          then $1
-      when nil, :none, /^.$/ then opts[:short]
-      else                   raise ArgumentError, "invalid short option name '#{opts[:short].inspect}'"
-    end
-
-    if opts[:short]
-      raise ArgumentError, "a short option name can't be a number or a dash" if opts[:short] =~ ::Trollop::Parser::INVALID_SHORT_ARG_REGEX
-    end
-
-    ## fill in :default for flags
-    opts[:default] = false if opts[:type] == :flag && opts[:default].nil?
-
-    ## autobox :default for :multi (multi-occurrence) arguments
-    opts[:default] = [opts[:default]] if opts[:default] && opts[:multi] && !opts[:default].kind_of?(Array)
-
-    ## fill in :multi
-    opts[:multi] ||= false
-
-    self.name = name
-    self.opts = opts
+    return nil if disambiguated_default.nil?
+    type_from_default = get_type_from_disdef(opts[:default], opttype, disambiguated_default)
+    return Optimist::Parser.registry_getopttype(type_from_default)
   end
 
-  def key?(name)
-    opts.key?(name)
+  def self.handle_long_opt(lopt, name)
+    lopt = lopt ? lopt.to_s : name.to_s.gsub("_", "-")
+    lopt = case lopt
+           when /^--([^-].*)$/ then $1
+           when /^[^-]/        then lopt
+           else                     raise ArgumentError, "invalid long option name #{lopt.inspect}"
+           end
   end
 
-  def type ; opts[:type] ; end
-  def flag? ; type == :flag ; end
-  def single_arg?
-    SINGLE_ARG_TYPES.include?(type)
+  def self.handle_short_opt(sopt)
+    sopt = sopt.to_s if sopt && sopt != :none
+    sopt = case sopt
+           when /^-(.)$/          then $1
+           when nil, :none, /^.$/ then sopt
+           else                   raise ArgumentError, "invalid short option name '#{sopt.inspect}'"
+           end
+
+    if sopt
+      raise ArgumentError, "a short option name can't be a number or a dash" if sopt =~ ::Optimist::Parser::INVALID_SHORT_ARG_REGEX
+    end
+    return sopt
   end
 
-  def multi ; opts[:multi] ; end
-  alias multi? multi
+end
 
-  def multi_arg?
-    MULTI_ARG_TYPES.include?(type)
+# Flag option.  Has no arguments. Can be negated with "no-".
+class BooleanOption < Option
+  register_alias :flag, :bool, :boolean, :trueclass, :falseclass
+  def initialize
+    super()
+    @default = false
   end
-
-  def default ; opts[:default] ; end
-  #? def multi_default ; opts.default || opts.multi && [] ; end
-  def array_default? ; opts[:default].kind_of?(Array) ; end
-
-  def short ; opts[:short] ; end
-  def short? ; short && short != :none ; end
-  # not thrilled about this
-  def short=(val) ; opts[:short] = val ; end
-  def long ; opts[:long] ; end
-  def callback ; opts[:callback] ; end
-  def desc ; opts[:desc] ; end
-
-  def required? ; opts[:required] ; end
-
-  def self.create(name, desc="", opts={})
-    new(name, desc, opts)
+  def flag? ; true ; end
+  def parse(_paramlist, neg_given)
+    return(self.name.to_s =~ /^no_/ ? neg_given : !neg_given)
   end
 end
 
-## The easy, syntactic-sugary entry method into Trollop. Creates a Parser,
+# Floating point number option class.
+class FloatOption < Option
+  register_alias :float, :double
+  def type_format ; "=<f>" ; end
+  def parse(paramlist, _neg_given)
+    paramlist.map do |pg|
+      pg.map do |param|
+        raise CommandlineError, "option '#{self.name}' needs a floating-point number" unless param.is_a?(Numeric) || param =~ FLOAT_RE
+        param.to_f
+      end
+    end
+  end
+end
+
+# Integer number option class.
+class IntegerOption < Option
+  register_alias :int, :integer, :fixnum
+  def type_format ; "=<i>" ; end
+  def parse(paramlist, _neg_given)
+    paramlist.map do |pg|
+      pg.map do |param|
+        raise CommandlineError, "option '#{self.name}' needs an integer" unless param.is_a?(Numeric) || param =~ /^-?[\d_]+$/
+        param.to_i
+      end
+    end
+  end
+end
+
+# Option class for handling IO objects and URLs.
+# Note that this will return the file-handle, not the file-name
+# in the case of file-paths given to it.
+class IOOption < Option
+  register_alias :io
+  def type_format ; "=<filename/uri>" ; end
+  def parse(paramlist, _neg_given)
+    paramlist.map do |pg|
+      pg.map do |param|
+        if param =~ /^(stdin|-)$/i
+          $stdin
+        else
+          require 'open-uri'
+          begin
+            open param
+          rescue SystemCallError => e
+            raise CommandlineError, "file or url for option '#{self.name}' cannot be opened: #{e.message}"
+          end
+        end
+      end
+    end
+  end
+end
+
+# Option class for handling Strings.
+class StringOption < Option
+  register_alias :string
+  def type_format ; "=<s>" ; end
+  def parse(paramlist, _neg_given)
+    paramlist.map { |pg| pg.map(&:to_s) }
+  end
+end
+
+# Option for dates.  Uses Chronic if it exists.
+class DateOption < Option
+  register_alias :date
+  def type_format ; "=<date>" ; end
+  def parse(paramlist, _neg_given)
+    paramlist.map do |pg|
+      pg.map do |param|
+        next param if param.is_a?(Date)
+        begin
+          begin
+            require 'chronic'
+            time = Chronic.parse(param)
+          rescue LoadError
+            # chronic is not available
+          end
+          time ? Date.new(time.year, time.month, time.day) : Date.parse(param)
+        rescue ArgumentError
+          raise CommandlineError, "option '#{self.name}' needs a date"
+        end
+      end
+    end
+  end
+end
+
+### MULTI_OPT_TYPES :
+## The set of values that indicate a multiple-parameter option (i.e., that
+## takes multiple space-separated values on the commandline) when passed as
+## the +:type+ parameter of #opt.
+
+# Option class for handling multiple Integers
+class IntegerArrayOption < IntegerOption
+  register_alias :fixnums, :ints, :integers
+  def type_format ; "=<i+>" ; end
+  def multi_arg? ; true ; end
+end
+
+# Option class for handling multiple Floats
+class FloatArrayOption < FloatOption
+  register_alias :doubles, :floats
+  def type_format ; "=<f+>" ; end
+  def multi_arg? ; true ; end
+end
+
+# Option class for handling multiple Strings
+class StringArrayOption < StringOption
+  register_alias :strings
+  def type_format ; "=<s+>" ; end
+  def multi_arg? ; true ; end
+end
+
+# Option class for handling multiple dates
+class DateArrayOption < DateOption
+  register_alias :dates
+  def type_format ; "=<date+>" ; end
+  def multi_arg? ; true ; end
+end
+
+# Option class for handling Files/URLs via 'open'
+class IOArrayOption < IOOption
+  register_alias :ios
+  def type_format ; "=<filename/uri+>" ; end
+  def multi_arg? ; true ; end
+end
+
+## The easy, syntactic-sugary entry method into Optimist. Creates a Parser,
 ## passes the block to it, then parses +args+ with it, handling any errors or
 ## requests for help or version information appropriately (and then exiting).
 ## Modifies +args+ in place. Returns a hash of option values.
@@ -804,8 +903,8 @@ end
 ##
 ## Example:
 ##
-##   require 'trollop'
-##   opts = Trollop::options do
+##   require 'optimist'
+##   opts = Optimist::options do
 ##     opt :monkey, "Use monkey mode"                    # a flag --monkey, defaulting to false
 ##     opt :name, "Monkey name", :type => :string        # a string --name <s>, defaulting to nil
 ##     opt :num_limbs, "Number of limbs", :default => 4  # an integer --num-limbs <i>, defaulting to 4
@@ -817,13 +916,13 @@ end
 ##   ## if called with --monkey
 ##   p opts # => {:monkey=>true, :name=>nil, :num_limbs=>4, :help=>false, :monkey_given=>true}
 ##
-## See more examples at http://trollop.rubyforge.org.
+## See more examples at http://optimist.rubyforge.org.
 def options(args = ARGV, *a, &b)
   @last_parser = Parser.new(*a, &b)
   with_standard_exception_handling(@last_parser) { @last_parser.parse args }
 end
 
-## If Trollop::options doesn't do quite what you want, you can create a Parser
+## If Optimist::options doesn't do quite what you want, you can create a Parser
 ## object and call Parser#parse on it. That method will throw CommandlineError,
 ## HelpNeeded and VersionNeeded exceptions when necessary; if you want to
 ## have these handled for you in the standard manner (e.g. show the help
@@ -834,15 +933,15 @@ end
 ##
 ## Usage example:
 ##
-##   require 'trollop'
-##   p = Trollop::Parser.new do
+##   require 'optimist'
+##   p = Optimist::Parser.new do
 ##     opt :monkey, "Use monkey mode"                     # a flag --monkey, defaulting to false
 ##     opt :goat, "Use goat mode", :default => true       # a flag --goat, defaulting to true
 ##   end
 ##
-##   opts = Trollop::with_standard_exception_handling p do
+##   opts = Optimist::with_standard_exception_handling p do
 ##     o = p.parse ARGV
-##     raise Trollop::HelpNeeded if ARGV.empty? # show help screen
+##     raise Optimist::HelpNeeded if ARGV.empty? # show help screen
 ##     o
 ##   end
 ##
@@ -877,12 +976,16 @@ end
 ##     opt :whatever # ...
 ##   end
 ##
-##   Trollop::die "need at least one filename" if ARGV.empty?
+##   Optimist::die "need at least one filename" if ARGV.empty?
+##
+## An exit code can be provide if needed
+##
+##   Optimist::die "need at least one filename", -2 if ARGV.empty?
 def die(arg, msg = nil, error_code = nil)
   if @last_parser
     @last_parser.die arg, msg, error_code
   else
-    raise ArgumentError, "Trollop::die can only be called after Trollop::options"
+    raise ArgumentError, "Optimist::die can only be called after Optimist::options"
   end
 end
 
@@ -897,13 +1000,13 @@ end
 ##   EOS
 ##   end
 ##
-##   Trollop::educate if ARGV.empty?
+##   Optimist::educate if ARGV.empty?
 def educate
   if @last_parser
     @last_parser.educate
     exit
   else
-    raise ArgumentError, "Trollop::educate can only be called after Trollop::options"
+    raise ArgumentError, "Optimist::educate can only be called after Optimist::options"
   end
 end
 
