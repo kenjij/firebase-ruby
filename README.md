@@ -57,4 +57,4 @@ db.delete('/users/jack/name/last')
 
 Using the given credentials, `firebase-ruby` will automatically retrieve the [access token](https://firebase.google.com/docs/reference/rest/database/user-auth) from Google's server. The token is valid for 1 hour but a new token will be fetched right before it expires.
 
-`firebase-ruby` keeps the Google OAuth 2.0 process a black box. But for more details, see the document on Google Developers which the process is based on: [Using OAuth 2.0 for Server to Server Applications](https://developers.google.com/identity/protocols/OAuth2ServiceAccount).
+`firebase-ruby` keeps the Google OAuth 2.0 process a black box. But for more details, see the document on Google Developers which the process is based on: [Using OAuth 2.0 for Server to Server Applications](https://developers.google.com/identity/protocols/oauth2/service-account).

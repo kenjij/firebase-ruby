@@ -5,10 +5,10 @@ require 'firebase-ruby/neko-http'
 module Firebase
   class Auth
     GOOGLE_JWT_SCOPE = 'https://www.googleapis.com/auth/firebase.database https://www.googleapis.com/auth/userinfo.email'
-    GOOGLE_JWT_AUD = 'https://www.googleapis.com/oauth2/v4/token'
+    GOOGLE_JWT_AUD = 'https://oauth2.googleapis.com/token'
     GOOGLE_ALGORITHM = 'RS256'
     GOOGLE_GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:jwt-bearer'
-    GOOGLE_TOKEN_URL = 'https://www.googleapis.com/oauth2/v4/token'
+    GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
 
     attr_reader :project_id
     attr_reader :client_email
