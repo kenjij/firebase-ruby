@@ -1,9 +1,9 @@
 require 'jwt'
+require 'firebase-ruby/neko-http'
+
 
 module Firebase
-
   class Auth
-
     GOOGLE_JWT_SCOPE = 'https://www.googleapis.com/auth/firebase.database https://www.googleapis.com/auth/userinfo.email'
     GOOGLE_JWT_AUD = 'https://www.googleapis.com/oauth2/v4/token'
     GOOGLE_ALGORITHM = 'RS256'
@@ -65,7 +65,7 @@ module Firebase
     # Request new token from Google
     def request_access_token
       Firebase.logger.info('Requesting access token to Google')
-      res = HTTP.post_form(GOOGLE_TOKEN_URL, jwt)
+      res = Neko::HTTP.post_form(GOOGLE_TOKEN_URL, jwt)
       Firebase.logger.debug("HTTP response code: #{res[:code]}")
       if res.class == Hash && res[:code] == 200
         data = JSON.parse(res[:body], {symbolize_names: true})
@@ -90,7 +90,5 @@ module Firebase
       jwt = JWT.encode payload, pkey, GOOGLE_ALGORITHM
       return {grant_type: GOOGLE_GRANT_TYPE, assertion: jwt}
     end
-
   end
-
 end

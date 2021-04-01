@@ -1,7 +1,8 @@
+require 'firebase-ruby/neko-http'
+
+
 module Firebase
-
   class Database
-
     FIREBASE_URL_TEMPLATE = 'https://%s.firebaseio.com/'
 
     attr_accessor :auth, :print, :shallow
@@ -59,7 +60,7 @@ module Firebase
     def http
       unless @http
         url = FIREBASE_URL_TEMPLATE % project_id
-        @http = HTTP.new(url, {'Content-Type' => 'application/json'})
+        @http = Neko::HTTP.new(url, {'Content-Type' => 'application/json'})
       end
       @http.headers['Authorization'] = "Bearer #{auth.valid_token}"
       return @http
@@ -77,7 +78,5 @@ module Firebase
       end
       return JSON.parse(data[:body], {symbolize_names: true})
     end
-
   end
-
 end
