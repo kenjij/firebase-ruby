@@ -39,22 +39,27 @@ db.set_auth_with_key(path: opts[:key])
 
 method = opts[:request].downcase.to_sym
 
-case method
-when :get, :delete
-  data = db.public_send(method, path)
-when :put, :patch, :post
-  if opts[:data_given]
-    data = db.public_send(method, path, opts[:data])
-  else
-    Optimist::die :data, "is missing"
+begin
+  case method
+  when :get, :delete
+    data = db.public_send(method, path)
+  when :put, :patch, :post
+    if opts[:data_given]
+      data = db.public_send(method, path, opts[:data])
+    else
+      Optimist::die :data, "is missing"
+    end
   end
-end
 
-if data
-  if opts[:ruby]
-    puts data
-  else
-    json_opts = {indent: '  ', space: ' ', object_nl: "\n", array_nl: "\n"}
-    puts JSON.fast_generate(data, json_opts)
+  if data
+    if opts[:ruby]
+      puts data
+    else
+      json_opts = {indent: '  ', space: ' ', object_nl: "\n", array_nl: "\n"}
+      puts JSON.fast_generate(data, json_opts)
+    end
   end
+rescue => e
+  puts e.message
+  exit 1
 end
