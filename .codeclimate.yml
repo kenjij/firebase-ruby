@@ -15,4 +15,4 @@ ratings:
      - "**"
 
 exclude_paths:
-  - lib/firebase-ruby/trollop.rb
+  - lib/firebase-ruby/optimist.rb
