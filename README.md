@@ -6,7 +6,7 @@ A pure Ruby library for [Firebase Realtime Database](https://firebase.google.com
 
 ## Getting Started
 
-## Firebase Realtime Database
+### Firebase Realtime Database
 
 Firebase SDK makes it easy to work with Realtime Database. However, on the server-side you you'll likely have to work with the REST API directly, and on top of this you will need to deal with OAuth, which can get complicated in a server environment.
 
@@ -14,7 +14,7 @@ To use firebase-ruby, you'll need a [Service Account and its Private Key](https:
 
 _See [Access Token](#oauth-20-access-token) for more details on that._
 
-## Usage 1) CLI: fbrb
+### Usage 1) CLI: fbrb
 
 This gem has a built-in command `fbrb` as an example use and for quick testing.
 
@@ -24,7 +24,7 @@ fbrb -k privatekey.json /
 
 This will download the entire database in JSON format. By using the private key JSON file provided via Firebase console when creating a service account, necessary information such as project ID, URL, credentials are automatically applied.
 
-## Usage 2) In Your App
+### Usage 2) In Your App
 
 ```ruby
 require 'firebase-ruby'
@@ -63,7 +63,7 @@ db.patch('/users/jack/name', {last: "Jones"})
 db.delete('/users/jack/name/last')
 ```
 
-## AWS Lambda Layers
+### AWS Lambda Layers
 
 Trying to use it in a Lambda function but lost figuring out how to install gems? See [firebase-lambda-layer](https://github.com/kenjij/firebase-lambda-layer).
 
