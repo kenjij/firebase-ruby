@@ -2,9 +2,19 @@
 
 [![Gem Version](https://badge.fury.io/rb/firebase-ruby.svg)](http://badge.fury.io/rb/firebase-ruby) [![Code Climate](https://codeclimate.com/github/kenjij/firebase-ruby/badges/gpa.svg)](https://codeclimate.com/github/kenjij/firebase-ruby) [![security](https://hakiri.io/github/kenjij/firebase-ruby/master.svg)](https://hakiri.io/github/kenjij/firebase-ruby/master)
 
-A pure Ruby library for [Firebase Realtime Database](https://firebase.google.com/products/database/) [REST API](https://firebase.google.com/docs/reference/rest/database/) which has only one external dependancy: [jwt](http://jwt.github.io/ruby-jwt/).  `firebase-ruby` uses Ruby's built-in Net::HTTP for all HTTP access.
+A pure Ruby library for [Firebase Realtime Database](https://firebase.google.com/products/database/) [REST API](https://firebase.google.com/docs/reference/rest/database/) which has only one external dependency: [jwt](http://jwt.github.io/ruby-jwt/).  `firebase-ruby` uses Ruby's built-in Net::HTTP for all HTTP access.
 
-## CLI: fbrb
+## Getting Started
+
+## Firebase Realtime Database
+
+Firebase SDK makes it easy to work with Realtime Database. However, on the server-side you you'll likely have to work with the REST API directly, and on top of this you will need to deal with OAuth, which can get complicated in a server environment.
+
+To use firebase-ruby, you'll need a [Service Account and its Private Key](https://firebase.google.com/docs/database/rest/auth#generate_an_access_token). This needs to be in JSON format. Now, you have two ways to use it.
+
+_See [Access Token](#oauth-20-access-token) for more details on that._
+
+## Usage 1) CLI: fbrb
 
 This gem has a built-in command `fbrb` as an example use and for quick testing.
 
@@ -14,7 +24,7 @@ fbrb -k privatekey.json /
 
 This will download the entire database in JSON format. By using the private key JSON file provided via Firebase console when creating a service account, necessary information such as project ID, URL, credentials are automatically applied.
 
-## Using In An App
+## Usage 2) In Your App
 
 ```ruby
 require 'firebase-ruby'
@@ -52,6 +62,10 @@ db.patch('/users/jack/name', {last: "Jones"})
 
 db.delete('/users/jack/name/last')
 ```
+
+## AWS Lambda Layers
+
+Trying to use it in a Lambda function but lost figuring out how to install gems? See [firebase-lambda-layer](https://github.com/kenjij/firebase-lambda-layer).
 
 ## OAuth 2.0 Access Token
 

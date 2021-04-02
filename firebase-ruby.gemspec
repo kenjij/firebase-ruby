@@ -8,7 +8,7 @@ Gem::Specification.new do |s|
   s.authors       = ['Ken J.']
   s.email         = ['kenjij@gmail.com']
   s.summary       = %q{Pure simple Ruby based Firebase REST library}
-  s.description   = %q{Firebase REST library written in pure Ruby without external dependancy.}
+  s.description   = %q{A pure Ruby server-side library for Firebase Realtime Database with only one external dependency: jwt.}
   s.homepage      = 'https://github.com/kenjij/firebase-ruby'
   s.license       = 'MIT'
 
@@ -16,6 +16,6 @@ Gem::Specification.new do |s|
   s.executables   = s.files.grep(%r{^bin/}) { |f| File.basename(f) }
   s.require_paths = ['lib']
 
-  s.required_ruby_version = '>= 2.0'
+  s.required_ruby_version = '>= 2.1'
   s.add_runtime_dependency 'jwt', '~> 2.2'
 end
